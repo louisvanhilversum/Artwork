@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skill Gap Visualization: Bridging the Technology Divide</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 18px;
+            background-color: rgba(0,0,0,0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">Skill Gap Visualization: Bridging the Technology Divide</div>
+    <script>
+        // Set up the scene, camera, and renderer
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a0a);
+
+        const aspectRatio = window.innerWidth / window.innerHeight;
+        const camera = new THREE.PerspectiveCamera(75, aspectRatio, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // Add lighting
+        const ambientLight = new THREE.AmbientLight(0x404040);
+        scene.add(ambientLight);
+
+        const pointLight = new THREE.PointLight(0xffffff, 2, 100);
+        pointLight.position.set(10, 5, 5);
+        pointLight.castShadow = true;
+        scene.add(pointLight);
+
+        // Create an array to store our spheres
+        const spheres = [];
+        const largeRadius = 1;
+        const smallRadius = 0.3;
+
+        // Define colors
+        const orangeColor = new THREE.Color(0xffa500);
+        const purpleColor = new THREE.Color(0x800080);
+        const blueColor = new THREE.Color(0x4080ff);
+
+        // Create two large metallic balls representing different skill sets
+        const skillSet1 = createSphere(largeRadius, orangeColor, new THREE.Vector3(-3, 0, 0)); // Orange
+        const skillSet2 = createSphere(largeRadius, purpleColor, new THREE.Vector3(3, 0, 0));  // Purple
+
+        spheres.push(skillSet1, skillSet2);
+
+        // Create smaller balls representing bridging efforts
+        const bridgingEfforts = 20;
+        for (let i = 0; i < bridgingEfforts; i++) {
+            const sphere = createSphere(smallRadius, blueColor, new THREE.Vector3(
+                (Math.random() - 0.5) * 20,
+                (Math.random() - 0.5) * 20,
+                (Math.random() - 0.5) * 20
+            ));
+            sphere.userData.originalColor = blueColor.clone();
+            sphere.userData.targetPosition = new THREE.Vector3();
+            sphere.userData.orbitCenter = new THREE.Vector3();
+            sphere.userData.orbitRadius = 0;
+            sphere.userData.orbitSpeed = Math.random() * 0.02 + 0.01;
+            sphere.userData.orbitAngle = Math.random() * Math.PI * 2;
+            spheres.push(sphere);
+        }
+
+        camera.position.z = 15;
+
+        // Array to store lines
+        const lines = [];
+
+        // Function to create a sphere
+        function createSphere(radius, color, position) {
+            const geometry = new THREE.SphereGeometry(radius, 32, 32);
+            const material = new THREE.MeshStandardMaterial({
+                color: color,
+                metalness: 0.8,
+                roughness: 0.2,
+                wireframe: false
+            });
+            const sphere = new THREE.Mesh(geometry, material);
+            sphere.position.copy(position);
+            sphere.castShadow = true;
+            sphere.receiveShadow = true;
+            scene.add(sphere);
+            return sphere;
+        }
+
+        // Function to create a line between two spheres
+        function createLine(sphere1, sphere2, color = 0x4080ff, opacity = 0.5) {
+            const geometry = new THREE.BufferGeometry().setFromPoints([sphere1.position, sphere2.position]);
+            const material = new THREE.LineBasicMaterial({ color: color, opacity: opacity, transparent: true });
+            const line = new THREE.Line(geometry, material);
+            scene.add(line);
+            return { line, sphere1, sphere2 };
+        }
+
+        // Create broken line between large skill set spheres
+        const brokenLine = createLine(skillSet1, skillSet2, 0xff0000, 0.3);
+        lines.push(brokenLine);
+
+        // Animation function
+        function animate() {
+            requestAnimationFrame(animate);
+
+            spheres.forEach((sphere, index) => {
+                sphere.rotation.x += 0.01;
+                sphere.rotation.y += 0.01;
+
+                if (index >= 2) {  // Only move smaller spheres
+                    // Generate a new target position every 10 seconds
+                    if (Date.now() % 10000 < 20) {
+                        if (Math.random() < 0.7) {  // 70% chance to move towards a large sphere
+                            const targetSphere = Math.random() < 0.5 ? skillSet1 : skillSet2;
+                            const direction = new THREE.Vector3().subVectors(targetSphere.position, sphere.position).normalize();
+                            const distance = Math.random() * 2 + 1; // Random distance between 1 and 3
+                            sphere.userData.targetPosition.copy(targetSphere.position).sub(direction.multiplyScalar(distance));
+                            sphere.userData.orbitCenter.copy(targetSphere.position);
+                            sphere.userData.orbitRadius = distance;
+                        } else {  // 30% chance to move to a random far position
+                            sphere.userData.targetPosition.set(
+                                (Math.random() - 0.5) * 20,
+                                (Math.random() - 0.5) * 20,
+                                (Math.random() - 0.5) * 20
+                            );
+                            sphere.userData.orbitCenter.set(0, 0, 0);
+                            sphere.userData.orbitRadius = 0;
+                        }
+                    }
+
+                    // Move towards the target position
+                    sphere.position.lerp(sphere.userData.targetPosition, 0.02);
+
+                    // Orbit around the center if applicable
+                    if (sphere.userData.orbitRadius > 0) {
+                        sphere.userData.orbitAngle += sphere.userData.orbitSpeed;
+                        sphere.position.x = sphere.userData.orbitCenter.x + Math.cos(sphere.userData.orbitAngle) * sphere.userData.orbitRadius;
+                        sphere.position.y = sphere.userData.orbitCenter.y + Math.sin(sphere.userData.orbitAngle) * sphere.userData.orbitRadius;
+                    }
+
+                    // Change color based on proximity to large spheres
+                    const dist1 = sphere.position.distanceTo(skillSet1.position);
+                    const dist2 = sphere.position.distanceTo(skillSet2.position);
+                    const minDist = Math.min(dist1, dist2);
+
+                    if (minDist < 3) {
+                        const targetColor = dist1 < dist2 ? orangeColor : purpleColor;
+                        sphere.material.color.lerp(targetColor, 0.1);
+                    } else {
+                        sphere.material.color.lerp(sphere.userData.originalColor, 0.1);
+                    }
+                }
+            });
+
+            // Update lines
+            lines.forEach(lineData => {
+                const { line, sphere1, sphere2 } = lineData;
+                line.geometry.setFromPoints([sphere1.position, sphere2.position]);
+                line.geometry.attributes.position.needsUpdate = true;
+            });
+
+            // Slowly rotate the entire scene
+            scene.rotation.y += 0.001;
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resizing
+        window.addEventListener('resize', () => {
+            const newWidth = window.innerWidth;
+            const newHeight = window.innerHeight;
+            camera.aspect = newWidth / newHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(newWidth, newHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
